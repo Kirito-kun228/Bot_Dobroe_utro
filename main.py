@@ -7,7 +7,9 @@ import json
 import sqlite3 as sl
 from sqlite3 import Error
 
-bot = telebot.TeleBot('7261598434:AAFg1_fWTqCf-GxJd-lFGFIZlH9LVMKbyfE')
+token = os.environ.get('TOKEN')
+
+bot = telebot.TeleBot(token)
 
 
 # подключение БД
@@ -81,14 +83,10 @@ def registration(message):
         connection.executemany(create_users, data)
     bot.send_message(message.from_user.id, 'Принято, спасибо!', parse_mode='Markdown')
 
-
-
-
-
 while True:
-    # в бесконечном цикле постоянно опрашиваем бота — есть ли новые сообщения
-    try:
-        bot.polling(none_stop=True, interval=0)
-    # если возникла ошибка — сообщаем про исключение и продолжаем работу
-    except Exception as e:
-        print('Сработало исключение!')
+        # в бесконечном цикле постоянно опрашиваем бота — есть ли новые сообщения
+        try:
+            bot.polling(none_stop=True, interval=0)
+        # если возникла ошибка — сообщаем про исключение и продолжаем работу
+        except Exception as e:
+            print('Сработало исключение!')
