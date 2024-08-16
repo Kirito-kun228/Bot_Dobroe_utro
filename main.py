@@ -14,13 +14,13 @@ bot = telebot.TeleBot(token)
 
 # подключение БД
 def create_connection(path):
-    connection = None
+    conn = None
     try:
-        connection = sl.connect(path)
+        conn = sl.connect('reports.db', check_same_thread=False)
         print("Подключение к базе данных SQLite прошло успешно")
     except Error as e:
         print(f"Произошла ошибка '{e}'")
-    return connection
+    return conn
 
 
 connection = create_connection("reports.db")
@@ -72,7 +72,7 @@ def news():
 
 
 # функция аутентификации нового пользователя
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['reg'])
 def registration(message):
     user_id1 = message.chat.id
     create_users = 'INSERT INTO users (user_id, time, weather, news, horoscope) values(?, ?, ?, ?, ?)'
@@ -89,4 +89,4 @@ while True:
             bot.polling(none_stop=True, interval=0)
         # если возникла ошибка — сообщаем про исключение и продолжаем работу
         except Exception as e:
-            print('Сработало исключение!')
+            print(e)
