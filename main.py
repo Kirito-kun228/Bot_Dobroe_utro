@@ -50,6 +50,14 @@ CREATE TABLE IF NOT EXISTS users (
 execute_query(connection, create_users_table)
 
 
+class User:
+    def __init__(self, user_id, name, time: str):
+        self.user_id = user_id
+        self.name = name
+        self.time = time
+        schedule.every().day.at(time).do(self.start)
+
+
 # функция получения погоды
 # во всех функциях используется временное решение с сообщением
 # до подключения БД
@@ -71,41 +79,7 @@ def horoscope():
 def news():
     pass
 
-
-# функция аутентификации нового пользователя
-@bot.message_handler(commands=['reg'])
-def registration(message):
-    user_id1 = message.chat.id
-    create_users = 'INSERT INTO users (user_id, time, weather, news, horoscope) values(?, ?, ?, ?, ?)'
-    data = [
-        (str(user_id1), '9:00', 0, 0, 0)
-    ]
-    with connection:
-        connection.executemany(create_users, data)
-    bot.send_message(message.from_user.id, 'Принято, спасибо!', parse_mode='Markdown')
-
-while True:
-        # в бесконечном цикле постоянно опрашиваем бота — есть ли новые сообщения
-        try:
-            bot.polling(none_stop=True, interval=0)
-        # если возникла ошибка — сообщаем про исключение и продолжаем работу
-        except Exception as e:
-            print(e)
-
-
-
-
-"""
-import schedule
-
-
-class User:
-
-    def __init__(self, user_id, name, time: str):
-        self.user_id = user_id
-        self.name = name
-        self.time = time
-        schedule.every().day.at(time).do(self.start)
+    # функция аутентификации нового пользователя
 
     @bot.message_handler(commands=['start'])
     def start():
@@ -145,6 +119,12 @@ while True:
     # если возникла ошибка — сообщаем про исключение и продолжаем работу
     except Exception as e:
         print(e)
+
+"""
+
+
+
+
 
 # lst = [1, 2, 3]
 # lst.pop(1) # [1, 3]
