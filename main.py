@@ -67,6 +67,7 @@ def horoscope():
 
 
 # функция получения новостей
+
 def news():
     pass
 
@@ -90,3 +91,62 @@ while True:
         # если возникла ошибка — сообщаем про исключение и продолжаем работу
         except Exception as e:
             print(e)
+
+
+
+
+"""
+import schedule
+
+
+class User:
+
+    def __init__(self, user_id, name, time: str):
+        self.user_id = user_id
+        self.name = name
+        self.time = time
+        schedule.every().day.at(time).do(self.start)
+
+    @bot.message_handler(commands=['start'])
+    def start():
+        bot.send_message(message.chat.id, 'Привет')
+
+
+DATA = []
+
+
+@bot.message_handler(commands=['reg'])
+def registration(message):
+    user_id1 = message.chat.id
+    create_users = 'INSERT INTO users (user_id, time, weather, news, horoscope) values(?, ?, ?, ?, ?)'
+
+    DATA.append(User(user_id=user_id1, name='name', time='time'))
+
+    with connection:
+        connection.executemany(create_users, data)
+    bot.send_message(message.from_user.id,
+                     'Принято, спасибо!',
+                     parse_mode='Markdown')
+
+
+@bot.message_handler(commands=['change'])
+def change_user_timer():
+    search_id = 10
+    for user_id, User in enumerate(DATA, start=10):  # (0, User1), (1, User2), ....
+        if User.user_id == search_id:
+            DATA.pop(user_id)
+            DATA.append(User(user_id=user_id, name=User.name, time='time'))
+
+
+while True:
+    # в бесконечном цикле постоянно опрашиваем бота — есть ли новые сообщения
+    try:
+        bot.polling(none_stop=True, interval=0)
+    # если возникла ошибка — сообщаем про исключение и продолжаем работу
+    except Exception as e:
+        print(e)
+
+# lst = [1, 2, 3]
+# lst.pop(1) # [1, 3]
+
+"""
