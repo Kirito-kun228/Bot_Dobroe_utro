@@ -42,92 +42,205 @@ create_users_table = """
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
   time TEXT NOT NULL,
-  weather INTEGER,
+  shirota FLOAT,
+  dolgota FLOAT,
+  znak TEXT,
   news INTEGER,
-  horoscope INTEGER
+  horoscope INTEGER,
+  weather INTEGER
+  
 );
 """
 execute_query(connection, create_users_table)
 
 
+# user_id, name, time, shirota, dolgota, znak, news, horoscope, weather
+
 class User:
-    def __init__(self, user_id, name, time: str, bnews: bool, bhoro: bool, bweat: bool):
+    def __init__(self, user_id, name, time, shirota, dolgota, znak, bnews: bool, bhoro: bool, bweat: bool):
         self.user_id = user_id
         self.name = name
+        self.shirota = shirota
+        self.dolgota = dolgota
         self.time = time
+        self.znak = znak
         self.bnews = bnews
         self.bhoro = bhoro
         self.bweat = bweat
-        schedule.every().day.at(time).do(sendin(self))
+        schedule.every().day.at(self.time).do(self.sendin)
+
+    def sendin(self):
+        bot.send_message(self.user_id, 'Доброе утро, '+self.name)
+        if self.bweat:
+            weather(self.user_id)
+        if self.bhoro:
+            horoscope(self.user_id)
+        if self.bnews:
+            news(self.user_id)
 
 
 # функция получения погоды
 # во всех функциях используется временное решение с сообщением
 # до подключения БД
 def weather(user):
-    url = "https://api.weather.yandex.ru/v2/informers?lat=55.75222&lon=37.61556"
+    bot.send_message(user, 'Здесь будет погода')
+
+    """url = "https://api.weather.yandex.ru/v2/informers?lat=55.75222&lon=37.61556"
     headers = {"X-Yandex-API-Key": "27eb5fc1-8eb9-4077-94b9-7d1d1c5dff07"}
     r = requests.get(url=url, headers=headers)
-    bot.send_message(user.user_id, r.text)
+    bot.send_message(user.user_id, r.text)"""
 
 
 # функция получения гороскопа
 def horoscope(user):
-    pass
+    bot.send_message(user, 'Здесь будет гороскоп')
 
 
 # функция получения новостей
 
-def news():
-    pass
+def news(user):
+    bot.send_message(user, 'Здесь будут новости')
 
 
 # функция аутентификации нового пользователя
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, 'Привет, чтобы начать пользоваться этим ботом тебе нужно зарегистрироваться, для этого отправь /reg')
-
-
-def sendin(user):
-    bot.send_message(user.user_id, 'Доброе утро!')
-    if user.bweat:
-        weather(user)
-    if user.bhoro:
-        horoscope(user)
-    if user.bnews:
-        news()
+    bot.send_message(message.chat.id, 'Привет, чтобы начать пользоваться этим ботом тебе нужно зарегистрироваться, '
+                                      'для этого отправь /reg')
 
 
 DATA = []
 
 
 @bot.message_handler(commands=['reg'])
-def registration(message):
-    keyboard = types.InlineKeyboardMarkup()
-    key_city = types.InlineKeyboardButton(text='Овен', callback_data='zodiac')
-    keyboard.add(key_city)
-    user_id1 = message.chat.id
+def reg_first(message):
+    mesg = bot.send_message(message.chat.id, 'Укажите ваше имя')
+    bot.register_next_step_handler(mesg, reg_name)
 
 
+def reg_name(message):
+    global name
+    name = message.text
+    bot.send_message(message.chat.id, 'Укажите город в котором вы живете')
+    bot.register_next_step_handler(message, reg_city)
 
 
+def reg_city(message):
+    city = message.text.capitalize()
+    print(city, type(city))
+    f = open('goroda.txt')
+    f = f.read()
+    f = f.split('\n')
+    print(f)
+    flag = 0
+    global shir
+    global dolg
+    for i in range(len(f)):
+        if city == str(f[i]).split('\t')[0]:
+            shir = str(f[i]).split('\t')[1]
+            dolg = str(f[i]).split('\t')[2]
+            flag = 1
+            break
+    else:
+        bot.send_message(message.chat.id, 'Город указан не верно, либо ваш город слишком маленький, попробуйте еще раз')
+        bot.register_next_step_handler(message, reg_city)
+    if flag == 1:
+        bot.send_message(message.chat.id, 'Укажите ваш знак зодиака')
+        bot.register_next_step_handler(message, reg_zodiak)
 
 
+def reg_zodiak(message):
+    global zodiak
+    zodiak = message.text.capitalize()
+    zodiaks = ["Овен", "Телец", "Близнецы", "Рак", "Лев", "Дева", "Весы", "Скорпион", "Стрелец", "Козерог", "Водолей",
+               "Рыбы"]
+    if zodiak not in zodiaks:
+        bot.send_message(message.chat.id, 'Знак зодиака указан не верно, повторите попытку')
+        bot.register_next_step_handler(message, reg_zodiak)
+    else:
+        bot.send_message(message.chat.id,
+                         'Укажите время в которое вам хотелось бы получать сообщения строго в формате ЧЧ:ММ')
+        bot.register_next_step_handler(message, reg_time)
 
 
-    if User(user_id=user_id1, name='name',time='time') not in DATA:
-        create_users = 'INSERT INTO users (user_id, time, weather, news, horoscope) values(?, ?, ?, ?, ?)'
-        DATA.append(User(user_id=user_id1, name='name', time='time'))
+def reg_time(message):
+    global user_time
+    user_time = message.text
+    # сделать проверку времени
+    bot.send_message(message.chat.id, 'Укажите хотите ли вы получать новости (да/нет)')
+    bot.register_next_step_handler(message, reg_news)
 
+
+def reg_news(message):
+    global need_news
+    flag = 0
+    if message.text.capitalize() == 'Да':
+        need_news = True
+        flag = 1
+    elif message.text.capitalize() == 'Нет':
+        need_news = False
+        flag = 1
+    else:
+        bot.send_message(message.chat.id, 'Неправильный ввод, введите да или нет')
+        bot.register_next_step_handler(message, reg_news)
+    if flag == 1:
+        bot.send_message(message.chat.id, 'Укажите хотите ли вы получать гороскоп (да/нет)')
+        bot.register_next_step_handler(message, reg_horoscope)
+
+
+def reg_horoscope(message):
+    global need_horoscope
+    flag = 0
+    if message.text.capitalize() == 'Да':
+        need_horoscope = True
+        flag = 1
+    elif message.text.capitalize() == 'Нет':
+        need_horoscope = False
+        flag = 1
+    else:
+        bot.send_message(message.chat.id, 'Неправильный ввод, введите да или нет')
+        bot.register_next_step_handler(message, reg_horoscope)
+    if flag == 1:
+        bot.send_message(message.chat.id, 'Укажите хотите ли вы получать информацию о погоде (да/нет)')
+        bot.register_next_step_handler(message, reg_weather)
+
+
+def reg_weather(message):
+    global need_weather
+    global user_id1
+    flag = 0
+    if message.text.capitalize() == 'Да':
+        need_weather = True
+        flag = 1
+    elif message.text.capitalize() == 'Нет':
+        need_weather = False
+        flag = 1
+    else:
+        bot.send_message(message.chat.id, 'Неправильный ввод, введите да или нет')
+        bot.register_next_step_handler(message, reg_weather)
+    if flag == 1:
+        bot.send_message(message.chat.id, 'Спасибо, вы зарегистрированы!')
+        user_id1 = message.chat.id
+        final_reg()
+
+
+def final_reg():
+    if User(user_id=user_id1, name=name, time=user_time, shirota=shir, dolgota=dolg, znak=zodiak, bnews=need_news,
+            bhoro=need_horoscope, bweat=need_weather) not in DATA:
+        create_users = 'INSERT INTO users (user_id, name, time, shirota, dolgota, znak, news, horoscope, weather) values(?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        DATA.append(
+            User(user_id=user_id1, name=name, time=user_time, shirota=shir, dolgota=dolg, znak=zodiak, bnews=need_news,
+                 bhoro=need_horoscope, bweat=need_weather))
         data = [
-            (str(user_id1), "09:00", 0, 0, 0)
+            (str(user_id1), name, user_time, shir, dolg, zodiak, int(need_news), int(need_horoscope), int(need_weather))
         ]
 
         with connection:
             connection.executemany(create_users, data)
-        bot.send_message(message.from_user.id, 'Принято, спасибо!', parse_mode='Markdown')
+    print(DATA)
 
 
 @bot.message_handler(commands=['change'])
@@ -141,19 +254,6 @@ def change_user_timer():
 
 while True:
     # в бесконечном цикле постоянно опрашиваем бота — есть ли новые сообщения
-    try:
         bot.polling(none_stop=True, interval=0)
     # если возникла ошибка — сообщаем про исключение и продолжаем работу
-    except Exception as e:
-        print(e)
 
-"""
-
-
-
-
-
-# lst = [1, 2, 3]
-# lst.pop(1) # [1, 3]
-
-"""
