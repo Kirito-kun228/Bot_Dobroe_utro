@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL,
   name TEXT NOT NULL,
-  time TEXT NOT NULL,
+  user_time TEXT NOT NULL,
   shirota FLOAT,
   dolgota FLOAT,
   znak TEXT,
@@ -59,20 +59,23 @@ execute_query(connection, create_users_table)
 # user_id, name, time, shirota, dolgota, znak, news, horoscope, weather
 
 class User:
-    def __init__(self, user_id, name, time, shirota, dolgota, znak, bnews: bool, bhoro: bool, bweat: bool):
+    def __init__(self, user_id, name, user_time, shirota, dolgota, znak, bnews: bool, bhoro: bool, bweat: bool):
         self.user_id = user_id
         self.name = name
         self.shirota = shirota
         self.dolgota = dolgota
-        self.time = time
+        self.user_time = user_time
         self.znak = znak
         self.bnews = bnews
         self.bhoro = bhoro
         self.bweat = bweat
-        schedule.every().day.at(self.time).do(self.sendin)
+
+
+
+
 
     def sendin(self):
-        bot.send_message(self.user_id, 'Доброе утро, '+self.name)
+        bot.send_message(self.user_id, 'Доброе утро, ' + self.name)
         if self.bweat:
             weather(self.user_id)
         if self.bhoro:
@@ -228,11 +231,11 @@ def reg_weather(message):
 
 
 def final_reg():
-    if User(user_id=user_id1, name=name, time=user_time, shirota=shir, dolgota=dolg, znak=zodiak, bnews=need_news,
+    if User(user_id=user_id1, name=name, user_time=user_time, shirota=shir, dolgota=dolg, znak=zodiak, bnews=need_news,
             bhoro=need_horoscope, bweat=need_weather) not in DATA:
-        create_users = 'INSERT INTO users (user_id, name, time, shirota, dolgota, znak, news, horoscope, weather) values(?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        create_users = 'INSERT INTO users (user_id, name, user_time, shirota, dolgota, znak, news, horoscope, weather) values(?, ?, ?, ?, ?, ?, ?, ?, ?)'
         DATA.append(
-            User(user_id=user_id1, name=name, time=user_time, shirota=shir, dolgota=dolg, znak=zodiak, bnews=need_news,
+            User(user_id=user_id1, name=name, user_time=user_time, shirota=shir, dolgota=dolg, znak=zodiak, bnews=need_news,
                  bhoro=need_horoscope, bweat=need_weather))
         data = [
             (str(user_id1), name, user_time, shir, dolg, zodiak, int(need_news), int(need_horoscope), int(need_weather))
@@ -241,6 +244,9 @@ def final_reg():
         with connection:
             connection.executemany(create_users, data)
     print(DATA)
+
+    schedule.every().day.at(DATA[-1].user_time).do(DATA[-1].sendin())
+
 
 
 @bot.message_handler(commands=['change'])
@@ -254,6 +260,8 @@ def change_user_timer():
 
 while True:
     # в бесконечном цикле постоянно опрашиваем бота — есть ли новые сообщения
-        bot.polling(none_stop=True, interval=0)
-    # если возникла ошибка — сообщаем про исключение и продолжаем работу
+    schedule.run_pending()
 
+
+    bot.polling(none_stop=True, interval=0)
+# если возникла ошибка — сообщаем про исключение и продолжаем работу
