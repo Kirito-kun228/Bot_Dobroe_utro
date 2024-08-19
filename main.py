@@ -7,10 +7,14 @@ import json
 import sqlite3 as sl
 from sqlite3 import Error
 from telebot import types
+import threading
+
 
 token = os.environ.get('TOKEN')
 
 bot = telebot.TeleBot(token)
+
+
 
 
 # подключение БД
@@ -69,19 +73,17 @@ class User:
         self.bnews = bnews
         self.bhoro = bhoro
         self.bweat = bweat
+    def planing(self):
+        schedule.every().day.at(self.user_time).do(sendin, self)
 
-
-
-
-
-    def sendin(self):
-        bot.send_message(self.user_id, 'Доброе утро, ' + self.name)
-        if self.bweat:
-            weather(self.user_id)
-        if self.bhoro:
-            horoscope(self.user_id)
-        if self.bnews:
-            news(self.user_id)
+def sendin(s_user):
+    bot.send_message(s_user.user_id, 'Доброе утро, ' + s_user.name)
+    if s_user.bweat:
+        weather(s_user.user_id)
+    if s_user.bhoro:
+        horoscope(s_user.user_id)
+    if s_user.bnews:
+        news(s_user.user_id)
 
 
 # функция получения погоды
@@ -235,8 +237,10 @@ def final_reg():
             bhoro=need_horoscope, bweat=need_weather) not in DATA:
         create_users = 'INSERT INTO users (user_id, name, user_time, shirota, dolgota, znak, news, horoscope, weather) values(?, ?, ?, ?, ?, ?, ?, ?, ?)'
         DATA.append(
-            User(user_id=user_id1, name=name, user_time=user_time, shirota=shir, dolgota=dolg, znak=zodiak, bnews=need_news,
+            User(user_id=user_id1, name=name, user_time=user_time, shirota=shir, dolgota=dolg, znak=zodiak,
+                 bnews=need_news,
                  bhoro=need_horoscope, bweat=need_weather))
+        DATA[-1].planing()
         data = [
             (str(user_id1), name, user_time, shir, dolg, zodiak, int(need_news), int(need_horoscope), int(need_weather))
         ]
@@ -245,7 +249,6 @@ def final_reg():
             connection.executemany(create_users, data)
     print(DATA)
 
-    schedule.every().day.at(DATA[-1].user_time).do(DATA[-1].sendin())
 
 
 
@@ -257,11 +260,14 @@ def change_user_timer():
             DATA.pop(user_id)
             DATA.append(User(user_id=user_id, name=User.name, time='time'))
 
+def schedule_checker():
+    while True:
+        schedule.run_pending()
+        time.sleep(10)  # Задержка в 1 секунду, чтобы не перегружать CPU
 
-while True:
-    # в бесконечном цикле постоянно опрашиваем бота — есть ли новые сообщения
-    schedule.run_pending()
+# Запуск потока для проверки расписания
+schedule_thread = threading.Thread(target=schedule_checker)
+schedule_thread.start()
 
-
-    bot.polling(none_stop=True, interval=0)
-# если возникла ошибка — сообщаем про исключение и продолжаем работу
+# Запуск бота в основном потоке
+bot.polling(none_stop=True)
