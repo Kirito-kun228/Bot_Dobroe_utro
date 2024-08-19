@@ -3,18 +3,26 @@ import schedule
 import os
 import time
 import requests
+from bs4 import BeautifulSoup as BS
 import json
 import sqlite3 as sl
 from sqlite3 import Error
 from telebot import types
 import threading
-
+from datetime import datetime
 
 token = os.environ.get('TOKEN')
 
 bot = telebot.TeleBot(token)
 
-
+def is_valid_time(time_str):
+    try:
+        # Попробуем распарсить строку времени
+        datetime.strptime(time_str, "%H:%M")
+        return True
+    except ValueError:
+        # Если возникла ошибка, значит формат неправильный
+        return False
 
 
 # подключение БД
@@ -63,7 +71,8 @@ execute_query(connection, create_users_table)
 # user_id, name, time, shirota, dolgota, znak, news, horoscope, weather
 
 class User:
-    def __init__(self, user_id, name, user_time, shirota, dolgota, znak, bnews: bool, bhoro: bool, bweat: bool):
+    def __init__(self, user_id, name, user_time, shirota: str, dolgota: str, znak, bnews: bool, bhoro: bool,
+                 bweat: bool):
         self.user_id = user_id
         self.name = name
         self.shirota = shirota
@@ -73,15 +82,17 @@ class User:
         self.bnews = bnews
         self.bhoro = bhoro
         self.bweat = bweat
+
     def planing(self):
         schedule.every().day.at(self.user_time).do(sendin, self)
+
 
 def sendin(s_user):
     bot.send_message(s_user.user_id, 'Доброе утро, ' + s_user.name)
     if s_user.bweat:
-        weather(s_user.user_id)
+        weather(s_user)
     if s_user.bhoro:
-        horoscope(s_user.user_id)
+        horoscope(s_user)
     if s_user.bnews:
         news(s_user.user_id)
 
@@ -90,23 +101,85 @@ def sendin(s_user):
 # во всех функциях используется временное решение с сообщением
 # до подключения БД
 def weather(user):
-    bot.send_message(user, 'Здесь будет погода')
-
-    """url = "https://api.weather.yandex.ru/v2/informers?lat=55.75222&lon=37.61556"
-    headers = {"X-Yandex-API-Key": "27eb5fc1-8eb9-4077-94b9-7d1d1c5dff07"}
+    print(user.shirota, type(user.shirota))
+    url = "https://api.weather.yandex.ru/v2/forecast?lat=" + user.shirota + "&lon=" + user.dolgota + "&ru_RU"
+    print(url)
+    headers = {"X-Yandex-Weather-Key": "27eb5fc1-8eb9-4077-94b9-7d1d1c5dff07"}
     r = requests.get(url=url, headers=headers)
-    bot.send_message(user.user_id, r.text)"""
+    data = json.loads(r.text)
+    fact = data["fact"]
+    con_trans = {
+        "clear": "ясно",
+        "partly-cloudy": "малооблачно",
+        "cloudy": "облачно с прояснениями",
+        "overcast": "пасмурно",
+        "light-rain": "небольшой дождь",
+        "rain": "дождь",
+        "heavy-rain": "сильный дождь",
+        "showers": "ливень",
+        "wet-snow": "дождь со снегом",
+        "light-snow": "небольшой снег",
+        "snow": "снег",
+        "snow-showers": "снегопад",
+        "hail": "град",
+        "thunderstorm": "гроза",
+        "thunderstorm-with-rain": "дождь с грозой",
+        "thunderstorm-with-hail": "гроза с градом"
+    }
+    bot.send_message(user.user_id,
+                     text=f'Температура за окном {fact["temp"]}°, ощущается как {fact["feels_like"]}°. На улице сейчас {con_trans[fact["condition"]]}')
 
 
 # функция получения гороскопа
 def horoscope(user):
-    bot.send_message(user, 'Здесь будет гороскоп')
+    znaks = {
+        "Овен" : "aries",
+        "Телец" : "taurus",
+        "Близнецы" : "gemini",
+        "Рак" : "cancer",
+        "Лев" : "leo",
+        "Дева" : "virgo",
+        "Весы" : "libra",
+        "Скорпион" : "scorpio",
+        "Стрелец" : "sagittarius",
+        "Козерог" : "capricorn",
+        "Водолей" : "aquarius",
+        "Рыбы" : "pisces"
+    }
+
+    znak_h=znaks[user.znak]
+    r = requests.get('https://horo.mail.ru/prediction/'+znak_h+"/today/")
+    html = BS(r.text, 'html.parser')
+    horoscope_res = html.find('div', class_='article__item article__item_alignment_left article__item_html').text
+    bot.send_message(user.user_id, f'Ваш гороскоп на сегодня:\n {user.znak} - {horoscope_res}')
 
 
 # функция получения новостей
 
+
 def news(user):
-    bot.send_message(user, 'Здесь будут новости')
+    r = requests.get('https://ria.ru/')
+    html = BS(r.text, 'html.parser')
+    title1 = html.find('div', class_='cell-main-photo__title').text
+    link = html.find('a', class_='cell-main-photo__link')['href']
+    news_time = html.find('div', class_='cell-info__date').text
+    mas_news = [[title1, news_time, link]]
+    chk = 0
+    for titles in html.find_all('div', class_='cell-list__item m-no-image'):
+        if chk == 2:
+            break
+        else:
+            news_name=titles.span.text
+            news_time = titles.div.text
+            news_link = titles.a['href']
+            mas_news.append([news_name, news_time, news_link])
+        chk += 1
+    print(mas_news)
+    text = (
+        f"Главные новости за последнее время:\n -------------- \n {mas_news[0][0]} \n Время новости: {mas_news[0][1]}, Источник {mas_news[0][2]}\n"
+        f"-------------- \n {mas_news[1][0]} \n Время новости: {mas_news[1][1]}, Источник {mas_news[1][2]}\n"
+        f"-------------- \n {mas_news[2][0]} \n Время новости: {mas_news[2][1]}, Источник {mas_news[2][2]}\n")
+    bot.send_message(user, text)
 
 
 # функция аутентификации нового пользователя
@@ -174,9 +247,12 @@ def reg_zodiak(message):
 def reg_time(message):
     global user_time
     user_time = message.text
-    # сделать проверку времени
-    bot.send_message(message.chat.id, 'Укажите хотите ли вы получать новости (да/нет)')
-    bot.register_next_step_handler(message, reg_news)
+    if is_valid_time(user_time):
+        bot.send_message(message.chat.id, 'Укажите хотите ли вы получать новости (да/нет)')
+        bot.register_next_step_handler(message, reg_news)
+    else:
+        bot.send_message(message.chat.id, 'Время указано не верно повторите попытку строго в формате ЧЧ:ММ')
+        bot.register_next_step_handler(message, reg_time)
 
 
 def reg_news(message):
@@ -250,8 +326,6 @@ def final_reg():
     print(DATA)
 
 
-
-
 @bot.message_handler(commands=['change'])
 def change_user_timer():
     search_id = 10
@@ -260,10 +334,12 @@ def change_user_timer():
             DATA.pop(user_id)
             DATA.append(User(user_id=user_id, name=User.name, time='time'))
 
+
 def schedule_checker():
     while True:
         schedule.run_pending()
         time.sleep(10)  # Задержка в 1 секунду, чтобы не перегружать CPU
+
 
 # Запуск потока для проверки расписания
 schedule_thread = threading.Thread(target=schedule_checker)
