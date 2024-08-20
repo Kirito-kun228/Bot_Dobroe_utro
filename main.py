@@ -98,6 +98,7 @@ class User:
         self.bweat = bweat
 
     def planing(self):
+        print(self.user_days)
         for day in self.user_days:
             if day == "понедельник":
                 schedule.every().monday.at(self.user_time).do(sendin, self)
@@ -242,7 +243,7 @@ for i in range(len(data)):
     DATA.append(User(user_id=data[i][1],
                      name=data[i][2],
                      user_time=data[i][3],
-                     user_days=json.loads(data[i][3]),
+                     user_days=data[i][3].split(","),
                      shirota=data[i][5],
                      dolgota=data[i][6],
                      znak=data[i][7],
@@ -259,6 +260,7 @@ def reg_first(message):
     user = User(user_id=message.chat.id)
     search_id = message.chat.id
     flag = 0
+    print(search_id)
     for user_id, user in enumerate(DATA):
         if int(user.user_id) == int(search_id):
             flag = 1
@@ -270,7 +272,7 @@ def reg_first(message):
 
 def reg_name(message, user):
     user.name = message.text
-    bot.send_message(message.chat.id, 'Укажите город в котором вы живете')
+    bot.send_message(message.chat.id, 'Укажите город, в котором вы живете')
     bot.register_next_step_handler(message, reg_city, user)
 
 
@@ -288,7 +290,7 @@ def reg_city(message, user):
             flag = 1
             break
     else:
-        bot.send_message(message.chat.id, 'Город указан не верно, либо ваш город слишком маленький, попробуйте еще раз')
+        bot.send_message(message.chat.id, 'Город указан неверно, либо ваш город слишком маленький, попробуйте еще раз')
         bot.register_next_step_handler(message, reg_city, user)
     if flag == 1:
         bot.send_message(message.chat.id, 'Укажите ваш знак зодиака')
@@ -300,12 +302,12 @@ def reg_zodiak(message, user):
     zodiaks = ["Овен", "Телец", "Близнецы", "Рак", "Лев", "Дева", "Весы", "Скорпион", "Стрелец", "Козерог", "Водолей",
                "Рыбы"]
     if zodiak not in zodiaks:
-        bot.send_message(message.chat.id, 'Знак зодиака указан не верно, повторите попытку')
+        bot.send_message(message.chat.id, 'Знак зодиака указан неверно, повторите попытку')
         bot.register_next_step_handler(message, reg_zodiak, user)
     else:
         user.znak = zodiak
         bot.send_message(message.chat.id,
-                         'Укажите время в которое вам хотелось бы получать сообщения строго в формате ЧЧ:ММ')
+                         'Укажите время, в которое вам хотелось бы получать сообщения (строго в формате ЧЧ:ММ)')
         bot.register_next_step_handler(message, reg_time, user)
 
 
@@ -313,10 +315,10 @@ def reg_time(message, user):
     user_time = message.text
     if is_valid_time(user_time):
         user.user_time = user_time
-        bot.send_message(message.chat.id, 'Укажите дни недели через запятую (например: Понедельник, Среда, Пятница)')
+        bot.send_message(message.chat.id, 'Укажите дни недели в которые вам хотелось бы получать сообщения, через запятую (например: Понедельник, Среда, Пятница)')
         bot.register_next_step_handler(message, reg_days, user)
     else:
-        bot.send_message(message.chat.id, 'Время указано неверно. Повторите попытку строго в формате ЧЧ:ММ')
+        bot.send_message(message.chat.id, 'Время указано неверно. Повторите попытку (строго в формате ЧЧ:ММ)')
         bot.register_next_step_handler(message, reg_time, user)
 
 
@@ -327,7 +329,7 @@ def reg_days(message, user):
 
     if user_days:
         user.user_days = user_days
-        bot.send_message(message.chat.id, 'Укажите хотите ли вы получать новости (да/нет)')
+        bot.send_message(message.chat.id, 'Укажите, хотите ли вы получать новости (да/нет)')
         bot.register_next_step_handler(message, reg_news, user)
     else:
         bot.send_message(message.chat.id, 'Некорректно указаны дни недели. Попробуйте еще раз.')
@@ -348,7 +350,7 @@ def reg_news(message, user):
         bot.register_next_step_handler(message, reg_news, user)
     if flag == 1:
         user.bnews = need_news
-        bot.send_message(message.chat.id, 'Укажите хотите ли вы получать гороскоп (да/нет)')
+        bot.send_message(message.chat.id, 'Укажите, хотите ли вы получать гороскоп (да/нет)')
         bot.register_next_step_handler(message, reg_horoscope, user)
 
 
@@ -366,7 +368,7 @@ def reg_horoscope(message, user):
         bot.register_next_step_handler(message, reg_horoscope, user)
     if flag == 1:
         user.bhoro = need_horoscope
-        bot.send_message(message.chat.id, 'Укажите хотите ли вы получать информацию о погоде (да/нет)')
+        bot.send_message(message.chat.id, 'Укажите, хотите ли вы получать информацию о погоде (да/нет)')
         bot.register_next_step_handler(message, reg_weather, user)
 
 
@@ -397,7 +399,7 @@ def final_reg(user):
     shir = user.shirota
     dolg = user.dolgota
     user_time = user.user_time
-    user_days = json.dumps(user.user_days)
+    user_days = ",".join(user.user_days)
     zodiak = user.znak
     need_news = user.bnews
     need_horoscope = user.bhoro
