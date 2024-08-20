@@ -208,7 +208,7 @@ def news(user):
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(message.chat.id, 'Привет, чтобы начать пользоваться этим ботом тебе нужно зарегистрироваться, '
-                                      'для этого отправь /reg')
+                                      'для этого отправь /reg, если вы хотите изменить свои данные используйте /edit')
 
 
 # Глобальный список пользователей
@@ -383,6 +383,159 @@ def final_reg(user):
 
     print(DATA)
 
+@bot.message_handler(commands=['edit'])
+def edit_user(message):
+    search_id = message.chat.id
+    current_user = None
+
+    # Поиск пользователя в глобальном списке DATA
+    for user in DATA:
+        if int(user.user_id) == int(search_id):
+            current_user = user
+            break
+
+    if current_user is None:
+        bot.send_message(message.chat.id, 'Вы не зарегистрированы. Сначала используйте /reg для регистрации.')
+    else:
+        # Начало процесса редактирования
+        bot.send_message(message.chat.id, 'Что вы хотите изменить? (имя, город, знак зодиака, время, дни, новости, гороскоп, погода)')
+        bot.register_next_step_handler(message, process_edit_choice, current_user)
+
+def process_edit_choice(message, user):
+    choice = message.text.lower()
+
+    if choice == 'имя':
+        msg = bot.send_message(message.chat.id, 'Введите новое имя:')
+        bot.register_next_step_handler(msg, edit_name, user)
+    elif choice == 'город':
+        msg = bot.send_message(message.chat.id, 'Введите новый город:')
+        bot.register_next_step_handler(msg, edit_city, user)
+    elif choice == 'знак зодиака':
+        msg = bot.send_message(message.chat.id, 'Введите новый знак зодиака:')
+        bot.register_next_step_handler(msg, edit_zodiak, user)
+    elif choice == 'время':
+        msg = bot.send_message(message.chat.id, 'Введите новое время (формат ЧЧ:ММ):')
+        bot.register_next_step_handler(msg, edit_time, user)
+    elif choice == 'дни':
+        msg = bot.send_message(message.chat.id, 'Введите новые дни недели через запятую (например: Понедельник, Среда, Пятница):')
+        bot.register_next_step_handler(msg, edit_days, user)
+    elif choice == 'новости':
+        msg = bot.send_message(message.chat.id, 'Хотите ли вы получать новости? (да/нет):')
+        bot.register_next_step_handler(msg, edit_news, user)
+    elif choice == 'гороскоп':
+        msg = bot.send_message(message.chat.id, 'Хотите ли вы получать гороскоп? (да/нет):')
+        bot.register_next_step_handler(msg, edit_horoscope, user)
+    elif choice == 'погода':
+        msg = bot.send_message(message.chat.id, 'Хотите ли вы получать погоду? (да/нет):')
+        bot.register_next_step_handler(msg, edit_weather, user)
+    else:
+        bot.send_message(message.chat.id, 'Некорректный выбор. Попробуйте еще раз.')
+        bot.register_next_step_handler(message, process_edit_choice, user)
+
+def update_user_in_db(user, column, value):
+    update_query = f"UPDATE users SET {column} = ? WHERE user_id = ?"
+    with connection:
+        connection.execute(update_query, (value, user.user_id))
+
+def edit_name(message, user):
+    user.name = message.text
+    update_user_in_db(user, 'name', user.name)
+    bot.send_message(message.chat.id, f'Имя обновлено на {user.name}.')
+
+def edit_city(message, user):
+    city = message.text.capitalize()
+    with open('goroda.txt') as f:
+        cities = f.read().splitlines()
+
+    flag = 0
+    for city_info in cities:
+        if city == city_info.split('\t')[0]:
+            user.shirota = city_info.split('\t')[1]
+            user.dolgota = city_info.split('\t')[2]
+            flag = 1
+            break
+
+    if flag == 0:
+        bot.send_message(message.chat.id, 'Город указан неверно или слишком мал. Попробуйте еще раз.')
+        bot.register_next_step_handler(message, edit_city, user)
+    else:
+        update_user_in_db(user, 'shirota', user.shirota)
+        update_user_in_db(user, 'dolgota', user.dolgota)
+        bot.send_message(message.chat.id, f'Город обновлен на {city}.')
+
+def edit_zodiak(message, user):
+    zodiak = message.text.capitalize()
+    zodiaks = ["Овен", "Телец", "Близнецы", "Рак", "Лев", "Дева", "Весы", "Скорпион", "Стрелец", "Козерог", "Водолей", "Рыбы"]
+
+    if zodiak not in zodiaks:
+        bot.send_message(message.chat.id, 'Знак зодиака указан неверно. Попробуйте еще раз.')
+        bot.register_next_step_handler(message, edit_zodiak, user)
+    else:
+        user.znak = zodiak
+        update_user_in_db(user, 'znak', user.znak)
+        bot.send_message(message.chat.id, f'Знак зодиака обновлен на {user.znak}.')
+
+def edit_time(message, user):
+    user_time = message.text
+    if is_valid_time(user_time):
+        user.user_time = user_time
+        update_user_in_db(user, 'user_time', user.user_time)
+        bot.send_message(message.chat.id, f'Время уведомлений обновлено на {user.user_time}.')
+    else:
+        bot.send_message(message.chat.id, 'Некорректный формат времени. Повторите попытку (формат ЧЧ:ММ).')
+        bot.register_next_step_handler(message, edit_time, user)
+
+def edit_days(message, user):
+    days = message.text.lower().replace(" ", "").split(',')
+    valid_days = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
+    user_days = [day for day in days if day in valid_days]
+
+    if user_days:
+        user.user_days = user_days
+        update_user_in_db(user, 'user_days', ",".join(user.user_days))
+        bot.send_message(message.chat.id, f'Дни недели обновлены на {", ".join(user.user_days)}.')
+    else:
+        bot.send_message(message.chat.id, 'Некорректно указаны дни недели. Попробуйте еще раз.')
+        bot.register_next_step_handler(message, edit_days, user)
+
+def edit_news(message, user):
+    if message.text.capitalize() == 'Да':
+        user.bnews = True
+    elif message.text.capitalize() == 'Нет':
+        user.bnews = False
+    else:
+        bot.send_message(message.chat.id, 'Неправильный ввод. Введите да или нет.')
+        bot.register_next_step_handler(message, edit_news, user)
+        return
+
+    update_user_in_db(user, 'news', int(user.bnews))
+    bot.send_message(message.chat.id, 'Настройка получения новостей обновлена.')
+
+def edit_horoscope(message, user):
+    if message.text.capitalize() == 'Да':
+        user.bhoro = True
+    elif message.text.capitalize() == 'Нет':
+        user.bhoro = False
+    else:
+        bot.send_message(message.chat.id, 'Неправильный ввод. Введите да или нет.')
+        bot.register_next_step_handler(message, edit_horoscope, user)
+        return
+
+    update_user_in_db(user, 'horoscope', int(user.bhoro))
+    bot.send_message(message.chat.id, 'Настройка получения гороскопа обновлена.')
+
+def edit_weather(message, user):
+    if message.text.capitalize() == 'Да':
+        user.bweat = True
+    elif message.text.capitalize() == 'Нет':
+        user.bweat = False
+    else:
+        bot.send_message(message.chat.id, 'Неправильный ввод. Введите да или нет.')
+        bot.register_next_step_handler(message, edit_weather, user)
+        return
+
+    update_user_in_db(user, 'weather', int(user.bweat))
+    bot.send_message(message.chat.id, 'Настройка получения погоды обновлена.')
 
 def thread_func():
     while True:
