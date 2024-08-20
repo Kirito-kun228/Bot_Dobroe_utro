@@ -17,17 +17,16 @@ token = os.environ.get('TOKEN')
 bot = telebot.TeleBot(token)
 
 
+# Функция проверки формата времени
 def is_valid_time(time_str):
     try:
-        # Попробуем распарсить строку времени
         datetime.strptime(time_str, "%H:%M")
         return True
     except ValueError:
-        # Если возникла ошибка, значит формат неправильный
         return False
 
 
-# подключение БД
+# подключение к БД
 def create_connection(path):
     conn = None
     try:
@@ -41,7 +40,7 @@ def create_connection(path):
 connection = create_connection("reports.db")
 
 
-# функция отправки запросов
+# функция отправки запросов к БД
 def execute_query(connection, query):
     cursor = connection.cursor()
     try:
@@ -52,6 +51,7 @@ def execute_query(connection, query):
         print(f"Произошла ошибка '{e}'")
 
 
+# Создание таблицы пользователей в БД, если она не существует
 create_users_table = """
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,27 +65,15 @@ CREATE TABLE IF NOT EXISTS users (
   news INTEGER,
   horoscope INTEGER,
   weather INTEGER
-  
 );
 """
 execute_query(connection, create_users_table)
 
 
-# user_id, name, time, shirota, dolgota, znak, news, horoscope, weather
-
+# Класс пользователя
 class User:
-    def __init__(self,
-                 user_id=None,
-                 name=None,
-                 user_time=None,
-                 user_days=[],
-                 shirota: str = None,
-                 dolgota: str = None,
-                 znak=None,
-                 bnews: bool = None,
-                 bhoro: bool = None,
-                 bweat: bool = None
-                 ):
+    def __init__(self, user_id=None, name=None, user_time=None, user_days=[], shirota=None, dolgota=None, znak=None,
+                 bnews=None, bhoro=None, bweat=None):
         self.user_id = user_id
         self.name = name
         self.shirota = shirota
@@ -98,7 +86,6 @@ class User:
         self.bweat = bweat
 
     def planing(self):
-        print(self.user_days)
         for day in self.user_days:
             if day == "понедельник":
                 schedule.every().monday.at(self.user_time).do(sendin, self)
@@ -116,6 +103,7 @@ class User:
                 schedule.every().sunday.at(self.user_time).do(sendin, self)
 
 
+# Функция отправки сообщения пользователю
 def sendin(s_user):
     bot.send_message(s_user.user_id, 'Доброе утро, ' + s_user.name)
     if s_user.bweat:
@@ -123,14 +111,12 @@ def sendin(s_user):
     if s_user.bhoro:
         horoscope(s_user)
     if s_user.bnews:
-        news(s_user.user_id)
+        news(s_user)
 
 
 # функция получения погоды
-# во всех функциях используется временное решение с сообщением
-# до подключения БД
 def weather(user):
-    url = "https://api.weather.yandex.ru/v2/forecast?lat=" + user.shirota + "&lon=" + user.dolgota + "&ru_RU"
+    url = f"https://api.weather.yandex.ru/v2/forecast?lat={user.shirota}&lon={user.dolgota}&ru_RU"
     headers = {"X-Yandex-Weather-Key": "27eb5fc1-8eb9-4077-94b9-7d1d1c5dff07"}
     r = requests.get(url=url, headers=headers)
     data = json.loads(r.text)
@@ -182,8 +168,6 @@ def horoscope(user):
 
 
 # функция получения новостей
-
-
 def news(user):
     r = requests.get('https://ria.ru/economy/')
     html = BS(r.text, 'html.parser')
@@ -212,62 +196,62 @@ def news(user):
             links.append(ssilka['href'])
         chk += 1
     mas_news = [names, times, links]
-    print(mas_news)
 
     text = (
         f"Главные новости за последнее время:\n -------------- \n {mas_news[0][0]} \n Время новости: {mas_news[1][0]}, Источник {mas_news[2][0]}\n"
         f"-------------- \n {mas_news[0][1]} \n Время новости: {mas_news[1][1]}, Источник {mas_news[2][1]}\n"
         f"-------------- \n {mas_news[0][2]} \n Время новости: {mas_news[1][2]}, Источник {mas_news[2][2]}\n")
-    bot.send_message(user, text)
+    bot.send_message(user.user_id, text)
 
 
 # функция аутентификации нового пользователя
-
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(message.chat.id, 'Привет, чтобы начать пользоваться этим ботом тебе нужно зарегистрироваться, '
                                       'для этого отправь /reg')
 
 
+# Глобальный список пользователей
 DATA = []
 
 request_to_read_data = "SELECT * FROM users"
-
 cursor = connection.cursor()
-
 cursor.execute(request_to_read_data)
-
 data = cursor.fetchall()
 
 for i in range(len(data)):
     DATA.append(User(user_id=data[i][1],
                      name=data[i][2],
                      user_time=data[i][3],
-                     user_days=data[i][3].split(","),
+                     user_days=data[i][4].split(","),
                      shirota=data[i][5],
                      dolgota=data[i][6],
                      znak=data[i][7],
-                     bnews=data[i][8],
-                     bhoro=data[i][9],
-                     bweat=data[i][10])
-                )
-
-print(DATA)
+                     bnews=bool(data[i][8]),
+                     bhoro=bool(data[i][9]),
+                     bweat=bool(data[i][10])
+                     ))
+    DATA[-1].planing()
 
 
 @bot.message_handler(commands=['reg'])
 def reg_first(message):
-    user = User(user_id=message.chat.id)
+    # Создаем нового пользователя с уникальным user_id
+    new_user = User(user_id=message.chat.id)
     search_id = message.chat.id
     flag = 0
-    print(search_id)
-    for user_id, user in enumerate(DATA):
-        if int(user.user_id) == int(search_id):
+
+    # Проверка, зарегистрирован ли пользователь
+    for existing_user in DATA:
+        if int(existing_user.user_id) == int(search_id):
             flag = 1
             bot.send_message(message.chat.id, 'Вы уже зарегистрированы')
+            break
+
     if flag == 0:
+        # Передача объекта new_user через все функции регистрации
         mesg = bot.send_message(message.chat.id, 'Укажите ваше имя')
-        bot.register_next_step_handler(mesg, reg_name, user)
+        bot.register_next_step_handler(mesg, reg_name, new_user)
 
 
 def reg_name(message, user):
@@ -278,21 +262,21 @@ def reg_name(message, user):
 
 def reg_city(message, user):
     city = message.text.capitalize()
-    f = open('goroda.txt')
-    f = f.read()
-    f = f.split('\n')
-    print(f)
+    with open('goroda.txt') as f:
+        cities = f.read().splitlines()
+
     flag = 0
-    for i in range(len(f)):
-        if city == str(f[i]).split('\t')[0]:
-            user.shirota = str(f[i]).split('\t')[1]
-            user.dolgota = str(f[i]).split('\t')[2]
+    for city_info in cities:
+        if city == city_info.split('\t')[0]:
+            user.shirota = city_info.split('\t')[1]
+            user.dolgota = city_info.split('\t')[2]
             flag = 1
             break
-    else:
+
+    if flag == 0:
         bot.send_message(message.chat.id, 'Город указан неверно, либо ваш город слишком маленький, попробуйте еще раз')
         bot.register_next_step_handler(message, reg_city, user)
-    if flag == 1:
+    else:
         bot.send_message(message.chat.id, 'Укажите ваш знак зодиака')
         bot.register_next_step_handler(message, reg_zodiak, user)
 
@@ -301,6 +285,7 @@ def reg_zodiak(message, user):
     zodiak = message.text.capitalize()
     zodiaks = ["Овен", "Телец", "Близнецы", "Рак", "Лев", "Дева", "Весы", "Скорпион", "Стрелец", "Козерог", "Водолей",
                "Рыбы"]
+
     if zodiak not in zodiaks:
         bot.send_message(message.chat.id, 'Знак зодиака указан неверно, повторите попытку')
         bot.register_next_step_handler(message, reg_zodiak, user)
@@ -315,7 +300,8 @@ def reg_time(message, user):
     user_time = message.text
     if is_valid_time(user_time):
         user.user_time = user_time
-        bot.send_message(message.chat.id, 'Укажите дни недели в которые вам хотелось бы получать сообщения, через запятую (например: Понедельник, Среда, Пятница)')
+        bot.send_message(message.chat.id,
+                         'Укажите дни недели, в которые вам хотелось бы получать сообщения, через запятую (например: Понедельник, Среда, Пятница)')
         bot.register_next_step_handler(message, reg_days, user)
     else:
         bot.send_message(message.chat.id, 'Время указано неверно. Повторите попытку (строго в формате ЧЧ:ММ)')
@@ -337,108 +323,75 @@ def reg_days(message, user):
 
 
 def reg_news(message, user):
-    flag = 0
-    need_news = None
     if message.text.capitalize() == 'Да':
-        need_news = True
-        flag = 1
+        user.bnews = True
     elif message.text.capitalize() == 'Нет':
-        need_news = False
-        flag = 1
+        user.bnews = False
     else:
         bot.send_message(message.chat.id, 'Неправильный ввод, введите да или нет')
         bot.register_next_step_handler(message, reg_news, user)
-    if flag == 1:
-        user.bnews = need_news
-        bot.send_message(message.chat.id, 'Укажите, хотите ли вы получать гороскоп (да/нет)')
-        bot.register_next_step_handler(message, reg_horoscope, user)
+        return
+
+    bot.send_message(message.chat.id, 'Укажите, хотите ли вы получать гороскоп (да/нет)')
+    bot.register_next_step_handler(message, reg_horoscope, user)
 
 
 def reg_horoscope(message, user):
-    flag = 0
-    need_horoscope = None
     if message.text.capitalize() == 'Да':
-        need_horoscope = True
-        flag = 1
+        user.bhoro = True
     elif message.text.capitalize() == 'Нет':
-        need_horoscope = False
-        flag = 1
+        user.bhoro = False
     else:
         bot.send_message(message.chat.id, 'Неправильный ввод, введите да или нет')
         bot.register_next_step_handler(message, reg_horoscope, user)
-    if flag == 1:
-        user.bhoro = need_horoscope
-        bot.send_message(message.chat.id, 'Укажите, хотите ли вы получать информацию о погоде (да/нет)')
-        bot.register_next_step_handler(message, reg_weather, user)
+        return
+
+    bot.send_message(message.chat.id, 'Укажите, хотите ли вы получать информацию о погоде (да/нет)')
+    bot.register_next_step_handler(message, reg_weather, user)
 
 
 def reg_weather(message, user):
-    flag = 0
-    need_weather = None
     if message.text.capitalize() == 'Да':
-        need_weather = True
-        flag = 1
+        user.bweat = True
     elif message.text.capitalize() == 'Нет':
-        need_weather = False
-        flag = 1
+        user.bweat = False
     else:
         bot.send_message(message.chat.id, 'Неправильный ввод, введите да или нет')
         bot.register_next_step_handler(message, reg_weather, user)
-    if flag == 1:
-        user.bweat = need_weather
-        bot.send_message(message.chat.id, 'Спасибо, вы зарегистрированы!')
-        final_reg(user)
+        return
+
+    bot.send_message(message.chat.id, 'Спасибо, вы зарегистрированы!')
+    final_reg(user)
 
 
 def final_reg(user):
-    create_users = 'INSERT INTO users (user_id, name, user_time, user_days, shirota, dolgota, znak, news, horoscope, weather) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    DATA.append(user)
-    user.planing()
-    user_id = user.user_id
-    name = user.name
-    shir = user.shirota
-    dolg = user.dolgota
-    user_time = user.user_time
-    user_days = ",".join(user.user_days)
-    zodiak = user.znak
-    need_news = user.bnews
-    need_horoscope = user.bhoro
-    need_weather = user.bweat
+    create_users = 'INSERT INTO users (user_id, name, user_time, user_days, shirota, dolgota, znak, news, horoscope, weather) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+
     data = [
-        (str(user_id), name, user_time, user_days, shir, dolg, zodiak, int(need_news), int(need_horoscope), int(need_weather))
+        (str(user.user_id), user.name, user.user_time, ",".join(user.user_days), user.shirota, user.dolgota, user.znak,
+         int(user.bnews), int(user.bhoro), int(user.bweat))
     ]
+
     with connection:
         connection.executemany(create_users, data)
+
+    # Добавляем пользователя в список
+    DATA.append(user)
+
+    # Настраиваем планирование задач для пользователя
+    user.planing()
+
     print(DATA)
 
 
-@bot.message_handler(commands=['change'])
-def change_user_timer(message):
-    search_id = message.chat.id
-    for user_id, user in enumerate(DATA):
-        if int(user.user_id) == int(search_id):
-            DATA.pop(user_id)
-            print(DATA)
-            user_id_to_delete = user.user_id
-            request_to_delete_data = "DELETE FROM users WHERE user_id = ?"
-            cursor.execute(request_to_delete_data, (user_id_to_delete,))
-            mesg = bot.send_message(message.chat.id, 'Регистрация начата заново, укажите ваше имя')
-            user = User(user_id=message.chat.id)
-            bot.register_next_step_handler(mesg, reg_name, user)
-            break
-    else:
-        bot.send_message(message.chat.id, 'Вы еще не зарегистрированы')
-
-
-def schedule_checker():
+def thread_func():
     while True:
         schedule.run_pending()
-        time.sleep(10)  # Задержка в 1 секунду, чтобы не перегружать CPU
+        time.sleep(1)
 
 
-# Запуск потока для проверки расписания
-schedule_thread = threading.Thread(target=schedule_checker)
-schedule_thread.start()
+# Запуск функции планирования в отдельном потоке
+t = threading.Thread(target=thread_func)
+t.start()
 
-# Запуск бота в основном потоке
 bot.polling(none_stop=True)
