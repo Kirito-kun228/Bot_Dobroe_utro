@@ -1,4 +1,3 @@
-import cursor
 import telebot
 import schedule
 import os
@@ -12,7 +11,7 @@ from telebot import types
 import threading
 from datetime import datetime
 
-token = os.environ.get('TOKEN')
+token = '7261598434:AAFg1_fWTqCf-GxJd-lFGFIZlH9LVMKbyfE'
 
 bot = telebot.TeleBot(token)
 
@@ -88,19 +87,23 @@ class User:
     def planing(self):
         for day in self.user_days:
             if day == "понедельник":
-                schedule.every().monday.at(self.user_time).do(sendin, self)
+                schedule.every().monday.at(self.user_time).tag(self.user_id).do(sendin, self)
             elif day == "вторник":
-                schedule.every().tuesday.at(self.user_time).do(sendin, self)
+                schedule.every().tuesday.at(self.user_time).tag(self.user_id).do(sendin, self)
             elif day == "среда":
-                schedule.every().wednesday.at(self.user_time).do(sendin, self)
+                schedule.every().wednesday.at(self.user_time).tag(self.user_id).do(sendin, self)
             elif day == "четверг":
-                schedule.every().thursday.at(self.user_time).do(sendin, self)
+                schedule.every().thursday.at(self.user_time).tag(self.user_id).do(sendin, self)
             elif day == "пятница":
-                schedule.every().friday.at(self.user_time).do(sendin, self)
+                schedule.every().friday.at(self.user_time).tag(self.user_id).do(sendin, self)
             elif day == "суббота":
-                schedule.every().saturday.at(self.user_time).do(sendin, self)
+                schedule.every().saturday.at(self.user_time).tag(self.user_id).do(sendin, self)
             elif day == "воскресенье":
-                schedule.every().sunday.at(self.user_time).do(sendin, self)
+                schedule.every().sunday.at(self.user_time).tag(self.user_id).do(sendin, self)
+
+    def remove_plan(self):
+        schedule.clear(self.user_id)
+
 
 
 # Функция отправки сообщения пользователю
@@ -117,9 +120,11 @@ def sendin(s_user):
 # функция получения погоды
 def weather(user):
     url = f"https://api.weather.yandex.ru/v2/forecast?lat={user.shirota}&lon={user.dolgota}&ru_RU"
-    headers = {"X-Yandex-Weather-Key": "27eb5fc1-8eb9-4077-94b9-7d1d1c5dff07"}
+    headers = {"X-Yandex-Weather-Key": "433a6c98-9ea6-4200-a892-09c9e40e6fb8"}
+
     r = requests.get(url=url, headers=headers)
     data = json.loads(r.text)
+    print(data)
     fact = data["fact"]
     con_trans = {
         "clear": "ясно",
@@ -439,6 +444,8 @@ def update_user_in_db(user, column, value):
 
 def edit_name(message, user):
     user.name = message.text
+    user.remove_plan()
+    user.planing()
     update_user_in_db(user, 'name', user.name)
     bot.send_message(message.chat.id, f'Имя обновлено на {user.name}.')
 
@@ -461,6 +468,8 @@ def edit_city(message, user):
     else:
         update_user_in_db(user, 'shirota', user.shirota)
         update_user_in_db(user, 'dolgota', user.dolgota)
+        user.remove_plan()
+        user.planing()
         bot.send_message(message.chat.id, f'Город обновлен на {city}.')
 
 def edit_zodiak(message, user):
@@ -473,6 +482,8 @@ def edit_zodiak(message, user):
     else:
         user.znak = zodiak
         update_user_in_db(user, 'znak', user.znak)
+        user.remove_plan()
+        user.planing()
         bot.send_message(message.chat.id, f'Знак зодиака обновлен на {user.znak}.')
 
 def edit_time(message, user):
@@ -480,6 +491,8 @@ def edit_time(message, user):
     if is_valid_time(user_time):
         user.user_time = user_time
         update_user_in_db(user, 'user_time', user.user_time)
+        user.remove_plan()
+        user.planing()
         bot.send_message(message.chat.id, f'Время уведомлений обновлено на {user.user_time}.')
     else:
         bot.send_message(message.chat.id, 'Некорректный формат времени. Повторите попытку (формат ЧЧ:ММ).')
@@ -493,6 +506,8 @@ def edit_days(message, user):
     if user_days:
         user.user_days = user_days
         update_user_in_db(user, 'user_days', ",".join(user.user_days))
+        user.remove_plan()
+        user.planing()
         bot.send_message(message.chat.id, f'Дни недели обновлены на {", ".join(user.user_days)}.')
     else:
         bot.send_message(message.chat.id, 'Некорректно указаны дни недели. Попробуйте еще раз.')
@@ -509,6 +524,8 @@ def edit_news(message, user):
         return
 
     update_user_in_db(user, 'news', int(user.bnews))
+    user.remove_plan()
+    user.planing()
     bot.send_message(message.chat.id, 'Настройка получения новостей обновлена.')
 
 def edit_horoscope(message, user):
@@ -522,6 +539,8 @@ def edit_horoscope(message, user):
         return
 
     update_user_in_db(user, 'horoscope', int(user.bhoro))
+    user.remove_plan()
+    user.planing()
     bot.send_message(message.chat.id, 'Настройка получения гороскопа обновлена.')
 
 def edit_weather(message, user):
@@ -535,6 +554,8 @@ def edit_weather(message, user):
         return
 
     update_user_in_db(user, 'weather', int(user.bweat))
+    user.remove_plan()
+    user.planing()
     bot.send_message(message.chat.id, 'Настройка получения погоды обновлена.')
 
 def thread_func():
