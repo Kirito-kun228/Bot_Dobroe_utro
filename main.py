@@ -6,6 +6,7 @@ import requests
 from bs4 import BeautifulSoup as BS
 import json
 import sqlite3 as sl
+import re
 from sqlite3 import Error
 from telebot import types
 import threading
@@ -17,13 +18,15 @@ bot = telebot.TeleBot(token)
 
 
 # Функция проверки формата времени
-def is_valid_time(time_str):
-    try:
-        datetime.strptime(time_str, "%H:%M")
-        return True
-    except ValueError:
-        return False
 
+def is_valid_time(time_str):
+    # Регулярное выражение для проверки формата времени HH:MM
+    time_pattern = re.compile(r'^([01]\d|2[0-3]):([0-5]\d)$')
+
+    if time_pattern.match(time_str):
+        return True
+    else:
+        return False
 
 # подключение к БД
 def create_connection(path):
@@ -491,9 +494,9 @@ def edit_time(message, user):
     if is_valid_time(user_time):
         user.user_time = user_time
         update_user_in_db(user, 'user_time', user.user_time)
+        bot.send_message(message.chat.id, f'Время уведомлений обновлено на {user.user_time}.')
         user.remove_plan()
         user.planing()
-        bot.send_message(message.chat.id, f'Время уведомлений обновлено на {user.user_time}.')
     else:
         bot.send_message(message.chat.id, 'Некорректный формат времени. Повторите попытку (формат ЧЧ:ММ).')
         bot.register_next_step_handler(message, edit_time, user)
