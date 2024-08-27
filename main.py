@@ -12,7 +12,7 @@ from telebot import types
 import threading
 from datetime import datetime
 
-token = '7261598434:AAFg1_fWTqCf-GxJd-lFGFIZlH9LVMKbyfE'
+token = os.environ.get('TOKEN')
 
 bot = telebot.TeleBot(token)
 
@@ -127,7 +127,6 @@ def weather(user):
 
     r = requests.get(url=url, headers=headers)
     data = json.loads(r.text)
-    print(data)
     fact = data["fact"]
     con_trans = {
         "clear": "ясно",
