@@ -8,9 +8,7 @@ import json
 import sqlite3 as sl
 import re
 from sqlite3 import Error
-from telebot import types
 import threading
-from datetime import datetime
 
 token = os.environ.get('TOKEN')
 
@@ -27,6 +25,7 @@ def is_valid_time(time_str):
         return True
     else:
         return False
+
 
 # подключение к БД
 def create_connection(path):
@@ -106,7 +105,6 @@ class User:
 
     def remove_plan(self):
         schedule.clear(self.user_id)
-
 
 
 # Функция отправки сообщения пользователю
@@ -390,6 +388,7 @@ def final_reg(user):
 
     print(DATA)
 
+
 @bot.message_handler(commands=['edit'])
 def edit_user(message):
     search_id = message.chat.id
@@ -405,8 +404,10 @@ def edit_user(message):
         bot.send_message(message.chat.id, 'Вы не зарегистрированы. Сначала используйте /reg для регистрации.')
     else:
         # Начало процесса редактирования
-        bot.send_message(message.chat.id, 'Что вы хотите изменить? (имя, город, знак зодиака, время, дни, новости, гороскоп, погода)')
+        bot.send_message(message.chat.id,
+                         'Что вы хотите изменить? (имя, город, знак зодиака, время, дни, новости, гороскоп, погода)')
         bot.register_next_step_handler(message, process_edit_choice, current_user)
+
 
 def process_edit_choice(message, user):
     choice = message.text.lower()
@@ -424,7 +425,8 @@ def process_edit_choice(message, user):
         msg = bot.send_message(message.chat.id, 'Введите новое время (формат ЧЧ:ММ):')
         bot.register_next_step_handler(msg, edit_time, user)
     elif choice == 'дни':
-        msg = bot.send_message(message.chat.id, 'Введите новые дни недели через запятую (например: Понедельник, Среда, Пятница):')
+        msg = bot.send_message(message.chat.id,
+                               'Введите новые дни недели через запятую (например: Понедельник, Среда, Пятница):')
         bot.register_next_step_handler(msg, edit_days, user)
     elif choice == 'новости':
         msg = bot.send_message(message.chat.id, 'Хотите ли вы получать новости? (да/нет):')
@@ -439,10 +441,12 @@ def process_edit_choice(message, user):
         bot.send_message(message.chat.id, 'Некорректный выбор. Попробуйте еще раз.')
         bot.register_next_step_handler(message, process_edit_choice, user)
 
+
 def update_user_in_db(user, column, value):
     update_query = f"UPDATE users SET {column} = ? WHERE user_id = ?"
     with connection:
         connection.execute(update_query, (value, user.user_id))
+
 
 def edit_name(message, user):
     user.name = message.text
@@ -450,6 +454,7 @@ def edit_name(message, user):
     user.planing()
     update_user_in_db(user, 'name', user.name)
     bot.send_message(message.chat.id, f'Имя обновлено на {user.name}.')
+
 
 def edit_city(message, user):
     city = message.text.capitalize()
@@ -474,9 +479,11 @@ def edit_city(message, user):
         user.planing()
         bot.send_message(message.chat.id, f'Город обновлен на {city}.')
 
+
 def edit_zodiak(message, user):
     zodiak = message.text.capitalize()
-    zodiaks = ["Овен", "Телец", "Близнецы", "Рак", "Лев", "Дева", "Весы", "Скорпион", "Стрелец", "Козерог", "Водолей", "Рыбы"]
+    zodiaks = ["Овен", "Телец", "Близнецы", "Рак", "Лев", "Дева", "Весы", "Скорпион", "Стрелец", "Козерог", "Водолей",
+               "Рыбы"]
 
     if zodiak not in zodiaks:
         bot.send_message(message.chat.id, 'Знак зодиака указан неверно. Попробуйте еще раз.')
@@ -487,6 +494,7 @@ def edit_zodiak(message, user):
         user.remove_plan()
         user.planing()
         bot.send_message(message.chat.id, f'Знак зодиака обновлен на {user.znak}.')
+
 
 def edit_time(message, user):
     user_time = message.text
@@ -499,6 +507,7 @@ def edit_time(message, user):
     else:
         bot.send_message(message.chat.id, 'Некорректный формат времени. Повторите попытку (формат ЧЧ:ММ).')
         bot.register_next_step_handler(message, edit_time, user)
+
 
 def edit_days(message, user):
     days = message.text.lower().replace(" ", "").split(',')
@@ -515,6 +524,7 @@ def edit_days(message, user):
         bot.send_message(message.chat.id, 'Некорректно указаны дни недели. Попробуйте еще раз.')
         bot.register_next_step_handler(message, edit_days, user)
 
+
 def edit_news(message, user):
     if message.text.capitalize() == 'Да':
         user.bnews = True
@@ -529,6 +539,7 @@ def edit_news(message, user):
     user.remove_plan()
     user.planing()
     bot.send_message(message.chat.id, 'Настройка получения новостей обновлена.')
+
 
 def edit_horoscope(message, user):
     if message.text.capitalize() == 'Да':
@@ -545,6 +556,7 @@ def edit_horoscope(message, user):
     user.planing()
     bot.send_message(message.chat.id, 'Настройка получения гороскопа обновлена.')
 
+
 def edit_weather(message, user):
     if message.text.capitalize() == 'Да':
         user.bweat = True
@@ -559,6 +571,7 @@ def edit_weather(message, user):
     user.remove_plan()
     user.planing()
     bot.send_message(message.chat.id, 'Настройка получения погоды обновлена.')
+
 
 def thread_func():
     while True:
