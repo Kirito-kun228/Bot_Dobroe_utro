@@ -7,6 +7,8 @@ import re
 from sqlite3 import Error
 import threading
 
+from send_funcs import *
+
 token = os.environ.get('TOKEN')
 
 bot = telebot.TeleBot(token)
@@ -67,8 +69,6 @@ CREATE TABLE IF NOT EXISTS users (
 """
 execute_query(connection, create_users_table)
 
-
-# Класс пользователя
 class User:
     def __init__(self, user_id=None, name=None, user_time=None, user_days=[], shirota=None, dolgota=None, znak=None,
                  bnews=None, bhoro=None, bweat=None):
@@ -104,11 +104,6 @@ class User:
         schedule.clear(self.user_id)
 
 
-# Функция отправки сообщения пользователю
-
-
-
-# функция аутентификации нового пользователя
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(message.chat.id, 'Привет, чтобы начать пользоваться этим ботом тебе нужно зарегистрироваться, '
@@ -136,6 +131,7 @@ for i in range(len(data)):
                      bweat=bool(data[i][10])
                      ))
     DATA[-1].planing()
+
 
 @bot.message_handler(commands=['weather'])
 def mes_weather(message):

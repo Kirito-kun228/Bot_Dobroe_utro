@@ -1,8 +1,12 @@
-from main import bot
 import requests
 from bs4 import BeautifulSoup as BS
 import json
+import os
+import telebot
 
+token = os.environ.get('TOKEN')
+
+bot = telebot.TeleBot(token)
 def sendin(s_user):
     bot.send_message(s_user.user_id, 'Доброе утро, ' + s_user.name)
     if s_user.bweat:
