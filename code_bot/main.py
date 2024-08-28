@@ -37,7 +37,7 @@ def create_connection(path):
     return conn
 
 
-connection = create_connection("reports.db")
+
 
 
 # функция отправки запросов к БД
@@ -51,23 +51,6 @@ def execute_query(connection, query):
         print(f"Произошла ошибка '{e}'")
 
 
-# Создание таблицы пользователей в БД, если она не существует
-create_users_table = """
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id TEXT NOT NULL,
-  name TEXT NOT NULL,
-  user_time TEXT NOT NULL,
-  user_days TEXT NOT NULL,
-  shirota FLOAT,
-  dolgota FLOAT,
-  znak TEXT,
-  news INTEGER,
-  horoscope INTEGER,
-  weather INTEGER
-);
-"""
-execute_query(connection, create_users_table)
 
 class User:
     def __init__(self, user_id=None, name=None, user_time=None, user_days=[], shirota=None, dolgota=None, znak=None,
@@ -110,27 +93,8 @@ def start(message):
                                       'для этого отправь /reg, если вы хотите изменить свои данные используйте /edit')
 
 
-# Глобальный список пользователей
-DATA = []
 
-request_to_read_data = "SELECT * FROM users"
-cursor = connection.cursor()
-cursor.execute(request_to_read_data)
-data = cursor.fetchall()
 
-for i in range(len(data)):
-    DATA.append(User(user_id=data[i][1],
-                     name=data[i][2],
-                     user_time=data[i][3],
-                     user_days=data[i][4].split(","),
-                     shirota=data[i][5],
-                     dolgota=data[i][6],
-                     znak=data[i][7],
-                     bnews=bool(data[i][8]),
-                     bhoro=bool(data[i][9]),
-                     bweat=bool(data[i][10])
-                     ))
-    DATA[-1].planing()
 
 
 @bot.message_handler(commands=['weather'])
@@ -497,8 +461,53 @@ def thread_func():
         time.sleep(1)
 
 
-# Запуск функции планирования в отдельном потоке
-t = threading.Thread(target=thread_func)
-t.start()
 
-bot.polling(none_stop=True)
+if __name__=='__main__':
+
+
+    connection = create_connection("reports.db")
+    # Создание таблицы пользователей в БД, если она не существует
+    create_users_table = """
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      user_time TEXT NOT NULL,
+      user_days TEXT NOT NULL,
+      shirota FLOAT,
+      dolgota FLOAT,
+      znak TEXT,
+      news INTEGER,
+      horoscope INTEGER,
+      weather INTEGER
+    );
+    """
+    execute_query(connection, create_users_table)
+    # Глобальный список пользователей
+    DATA = []
+
+    request_to_read_data = "SELECT * FROM users"
+    cursor = connection.cursor()
+    cursor.execute(request_to_read_data)
+    data = cursor.fetchall()
+
+    for i in range(len(data)):
+        DATA.append(User(user_id=data[i][1],
+                         name=data[i][2],
+                         user_time=data[i][3],
+                         user_days=data[i][4].split(","),
+                         shirota=data[i][5],
+                         dolgota=data[i][6],
+                         znak=data[i][7],
+                         bnews=bool(data[i][8]),
+                         bhoro=bool(data[i][9]),
+                         bweat=bool(data[i][10])
+                         ))
+        DATA[-1].planing()
+
+
+    # Запуск функции планирования в отдельном потоке
+    t = threading.Thread(target=thread_func)
+    t.start()
+
+    bot.polling(none_stop=True)
