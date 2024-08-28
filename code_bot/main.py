@@ -136,7 +136,7 @@ for i in range(len(data)):
 @bot.message_handler(commands=['weather'])
 def mes_weather(message):
     for user in DATA:
-        if message.chat.id == user.user_id:
+        if int(message.chat.id) == int(user.user_id):
             weather(user)
             break
 
@@ -144,7 +144,7 @@ def mes_weather(message):
 @bot.message_handler(commands=['horoscope'])
 def mes_horo(message):
     for user in DATA:
-        if message.chat.id == user.user_id:
+        if int(message.chat.id) == int(user.user_id):
             horoscope(user)
             break
 
@@ -152,7 +152,7 @@ def mes_horo(message):
 @bot.message_handler(commands=['news'])
 def mes_news(message):
     for user in DATA:
-        if message.chat.id == user.user_id:
+        if int(message.chat.id) == int(user.user_id):
             news(user)
             break
 
