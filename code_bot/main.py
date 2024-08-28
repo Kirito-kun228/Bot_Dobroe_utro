@@ -37,9 +37,6 @@ def create_connection(path):
     return conn
 
 
-
-
-
 # функция отправки запросов к БД
 def execute_query(connection, query):
     cursor = connection.cursor()
@@ -49,7 +46,6 @@ def execute_query(connection, query):
         print("Запрос выполнен успешно")
     except Error as e:
         print(f"Произошла ошибка '{e}'")
-
 
 
 class User:
@@ -91,10 +87,6 @@ class User:
 def start(message):
     bot.send_message(message.chat.id, 'Привет, чтобы начать пользоваться этим ботом тебе нужно зарегистрироваться, '
                                       'для этого отправь /reg, если вы хотите изменить свои данные используйте /edit')
-
-
-
-
 
 
 @bot.message_handler(commands=['weather'])
@@ -461,9 +453,7 @@ def thread_func():
         time.sleep(1)
 
 
-
-if __name__=='__main__':
-
+if __name__ == '__main__':
 
     connection = create_connection("reports.db")
     # Создание таблицы пользователей в БД, если она не существует
@@ -504,7 +494,6 @@ if __name__=='__main__':
                          bweat=bool(data[i][10])
                          ))
         DATA[-1].planing()
-
 
     # Запуск функции планирования в отдельном потоке
     t = threading.Thread(target=thread_func)
