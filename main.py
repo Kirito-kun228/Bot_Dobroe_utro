@@ -209,6 +209,8 @@ def news(user):
     bot.send_message(user.user_id, text)
 
 
+
+
 # функция аутентификации нового пользователя
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -237,6 +239,29 @@ for i in range(len(data)):
                      bweat=bool(data[i][10])
                      ))
     DATA[-1].planing()
+
+@bot.message_handler(commands=['weather'])
+def mes_weather(message):
+    for user in DATA:
+        if message.chat.id == user.user_id:
+            weather(user)
+            break
+
+
+@bot.message_handler(commands=['horoscope'])
+def mes_horo(message):
+    for user in DATA:
+        if message.chat.id == user.user_id:
+            horoscope(user)
+            break
+
+
+@bot.message_handler(commands=['news'])
+def mes_news(message):
+    for user in DATA:
+        if message.chat.id == user.user_id:
+            news(user)
+            break
 
 
 @bot.message_handler(commands=['reg'])
