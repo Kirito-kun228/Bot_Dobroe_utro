@@ -97,6 +97,7 @@ def mes_weather(message):
             break
 
 
+
 @bot.message_handler(commands=['horoscope'])
 def mes_horo(message):
     for user in DATA:

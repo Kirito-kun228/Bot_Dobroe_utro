@@ -67,7 +67,7 @@ def horoscope(user):
     znak_h = znaks[user.znak]
     r = requests.get('https://horo.mail.ru/prediction/' + znak_h + "/today/")
     html = BS(r.text, 'html.parser')
-    horoscope_res = html.find('div', class_='article__item article__item_alignment_left article__item_html').text
+    horoscope_res = html.find('div', class_='b6a5d4949c e45a4c1552').text
     bot.send_message(user.user_id, f'Ваш гороскоп на сегодня:\n {user.znak} - {horoscope_res}')
 
 
